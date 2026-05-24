@@ -1,0 +1,11 @@
+sentence-transformers
+faiss-cpu
+streamlit
+requests
+pandas
+numpy
+plotly
+networkx
+groq
+python-dotenv
+shap
