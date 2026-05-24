@@ -7,11 +7,19 @@ load_dotenv()
 
 def get_groq_client():
     """
-    Creates and returns a Groq client using the API key from .env
+    Creates and returns a Groq client.
+    Reads from environment variables — works locally and on HuggingFace.
     """
-    api_key = os.getenv("GROQ_API_KEY")
+    # Try all possible key names
+    api_key = (
+        os.getenv("GROQ_API_KEY") or
+        os.getenv("GROQAPIKEY") or
+        os.getenv("GROQKEY") or
+        os.getenv("GROQTOKEN") or
+        os.getenv("GROQ")
+    )
     if not api_key:
-        raise ValueError("GROQ_API_KEY not found in .env file")
+        raise ValueError("Groq API key not found. Please set GROQ_API_KEY in environment.")
     return Groq(api_key=api_key)
 
 
