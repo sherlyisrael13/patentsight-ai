@@ -1,3 +1,12 @@
+---
+title: PatentSight AI
+emoji: ✈️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+---
+
 # ✈️ PatentSight AI — Aerospace Patent Intelligence Platform
 
 An AI-powered semantic search engine for aerospace patents, built with sentence-transformers, FAISS, and Streamlit.
