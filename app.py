@@ -190,7 +190,7 @@ with st.sidebar:
 # ─────────────────────────────────────────
 # MAIN — TABS
 # ─────────────────────────────────────────
-tab1, tab2 = st.tabs(["🔍 Search Patents", "📋 Browse All Patents"])
+tab1, tab2, tab3 = st.tabs(["🔍 Search Patents", "🤖 AI Assistant", "📋 Browse All Patents"])
 
 # ── TAB 1: SEARCH ──
 with tab1:
@@ -258,27 +258,76 @@ with tab1:
 
 
 # ── TAB 2: BROWSE ALL ──
+# ── TAB 2: AI ASSISTANT ──
 with tab2:
-    st.markdown("### 📋 All Patents in Database")
-    st.caption(f"Showing all {len(patents)} aerospace patents")
+    st.markdown("### 🤖 Ask the Patent Intelligence Assistant")
+    st.caption("Powered by RAG — answers are grounded in real patent data, not guesswork")
 
-    # Filter by year
-    all_years = sorted(set(p["year"] for p in patents if p.get("year")), reverse=True)
-    selected_year = st.selectbox("Filter by year", ["All years"] + all_years)
+    # Import RAG
+    from rag import rag_search_and_answer
 
-    filtered = patents if selected_year == "All years" else [
-        p for p in patents if p.get("year") == selected_year
+    # Example questions
+    st.markdown("**Example questions you can ask:**")
+    example_questions = [
+        "Which patents use AI or machine learning for drone control?",
+        "What are the main approaches to fuel efficiency in aerospace?",
+        "Which patents focus on autonomous navigation systems?",
+        "What safety systems exist for UAV operations in urban areas?",
+        "Which patents deal with satellite positioning and control?"
     ]
 
-    st.markdown(f"**{len(filtered)} patents**")
+    col1, col2 = st.columns(2)
+    for i, eq in enumerate(example_questions):
+        if i % 2 == 0:
+            with col1:
+                if st.button(eq, use_container_width=True, key=f"eq_{i}"):
+                    st.session_state.rag_question = eq
+        else:
+            with col2:
+                if st.button(eq, use_container_width=True, key=f"eq_{i}"):
+                    st.session_state.rag_question = eq
+
     st.markdown("---")
 
-    for p in filtered:
-        with st.expander(f"📄 {p['title']} ({p['date']})"):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.markdown(f"**Abstract:** {p['abstract']}")
-            with col2:
-                st.markdown(f"**Patent No.:** `{p['number']}`")
-                st.markdown(f"**Date:** {p['date']}")
-                st.markdown(f"**Year:** {p['year']}")
+    # Initialize session state for RAG
+    if "rag_question" not in st.session_state:
+        st.session_state.rag_question = ""
+
+    rag_question = st.text_area(
+        "Ask anything about aerospace patents:",
+        value=st.session_state.rag_question,
+        placeholder="e.g. Which patents use machine learning for UAV control?",
+        height=80
+    )
+
+    ask_clicked = st.button("🤖 Ask AI Assistant", type="primary")
+
+    if rag_question and ask_clicked:
+        with st.spinner("Retrieving patents and generating answer..."):
+            result = rag_search_and_answer(
+                rag_question, patents, model, index, top_k=5
+            )
+
+        # Show AI answer
+        st.markdown("### 💡 AI Analysis")
+        st.markdown(f"""
+        <div style="background:#f0f7ff; border-left:4px solid #1A3C6E;
+        padding:1.2rem; border-radius:6px; margin-bottom:1rem;">
+        {result['answer'].replace(chr(10), '<br>')}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Show patents used
+        st.markdown("### 📄 Patents Analyzed")
+        for p in result["patents_used"]:
+            score = p["similarity_score"]
+            with st.expander(f"📄 {p['title']} — Patent #{p['number']}"):
+                st.write(p["abstract"])
+                st.caption(f"Date: {p['date']} | Similarity Score: {score:.3f}")
+
+        # Add to search history
+        if rag_question not in st.session_state.search_history:
+            st.session_state.search_history.append(f"[AI] {rag_question}")
+
+    elif not rag_question:
+        st.info("💡 Type a question above or click an example to get an AI-powered analysis of the patent database.")
