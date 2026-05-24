@@ -126,7 +126,7 @@ with st.sidebar:
 # ─────────────────────────────────────────
 # TABS
 # ─────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs(["🔍 Search Patents", "🤖 AI Assistant", "📈 Analytics", "📋 Browse All Patents"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🔍 Search Patents", "🤖 AI Assistant", "📈 Analytics", "🕸️ Knowledge Graph", "📋 Browse All Patents"])
 
 # ── TAB 1: SEARCH ──
 with tab1:
@@ -298,9 +298,78 @@ with tab3:
         with st.expander(f"📄 {p['title']} ({p['date']})"):
             st.write(p["abstract"])
             st.caption(f"Patent #{p['number']}")
-
-# ── TAB 4: BROWSE ALL ──
+            
+# ── TAB 4: KNOWLEDGE GRAPH + EXPLAINABILITY ──
 with tab4:
+    from explainer import build_topic_network, graph_to_plotly, explain_search_result
+
+    st.markdown("### 🕸️ Technology Domain Network")
+    st.caption("Shows how aerospace technology domains connect based on patent co-occurrence")
+
+    # Build and show network graph
+    G, topic_patents = build_topic_network(patents)
+    fig_network = graph_to_plotly(G)
+
+    if fig_network:
+        st.plotly_chart(fig_network, use_container_width=True)
+    
+    # Domain details below graph
+    st.markdown("---")
+    st.markdown("### 📊 Domain Connection Details")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Patents per Domain**")
+        for node in G.nodes():
+            count = G.nodes[node].get("count", 0)
+            st.markdown(f"- **{node}**: {count} patents")
+
+    with col2:
+        st.markdown("**Strongest Connections**")
+        edges = [(u, v, d["weight"]) for u, v, d in G.edges(data=True)]
+        edges_sorted = sorted(edges, key=lambda x: x[2], reverse=True)
+        for u, v, w in edges_sorted[:6]:
+            st.markdown(f"- {u} ↔ {v}: **{w}** shared patents")
+
+    st.markdown("---")
+
+    # Explainability section
+    st.markdown("### 🔍 Search Result Explainer")
+    st.caption("See exactly WHY a patent matched your search query")
+
+    explain_query = st.text_input(
+        "Enter a search query to explain:",
+        placeholder="e.g. AI for drone navigation",
+        key="explain_query"
+    )
+
+    if explain_query:
+        from embedder import search_patents
+        results = search_patents(explain_query, patents, model, index, top_k=3)
+
+        st.markdown(f"**Top 3 results for:** *\"{explain_query}\"* — with explanations")
+
+        for r in results:
+            explanation = explain_search_result(explain_query, r)
+
+            with st.expander(f"#{r['rank']} — {r['title']}"):
+                # Explanation text
+                st.markdown(explanation["explanation"])
+
+                # Keyword importance bars
+                st.markdown("**Key matching terms:**")
+                if explanation["keywords"]:
+                    kw_df = pd.DataFrame({
+                        "Keyword": explanation["keywords"],
+                        "Relevance": explanation["scores"]
+                    })
+                    st.bar_chart(kw_df.set_index("Keyword"))
+
+                st.caption(f"Patent #{r['number']} | Date: {r['date']} | Score: {r['similarity_score']:.3f}")
+
+
+# ── TAB 5: BROWSE ALL ──
+with tab5:
     st.markdown("### 📋 All Patents in Database")
     st.caption(f"Showing all {len(patents)} aerospace patents")
     all_years = sorted(set(p["year"] for p in patents if p.get("year")), reverse=True)
