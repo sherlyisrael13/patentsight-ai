@@ -5,84 +5,41 @@ import sys
 import os
 from collections import Counter
 import pandas as pd
+import plotly.express as px
 
 sys.path.append("src")
 
 from fetch_patents import load_patents, get_sample_patents, save_patents
 from embedder import load_model, create_embeddings, build_faiss_index, search_patents, load_index, save_index
+from analytics import get_patents_by_year, get_domain_breakdown, get_top_keywords, get_summary_stats, TECH_DOMAINS
+from rag import rag_search_and_answer
 
 # ─────────────────────────────────────────
 # PAGE CONFIG
 # ─────────────────────────────────────────
-st.set_page_config(
-    page_title="PatentSight AI",
-    page_icon="✈️",
-    layout="wide"
-)
+st.set_page_config(page_title="PatentSight AI", page_icon="✈️", layout="wide")
 
-# ─────────────────────────────────────────
-# STYLING
-# ─────────────────────────────────────────
 st.markdown("""
 <style>
-    .main-title {
-        font-size: 2.8rem;
-        font-weight: 700;
-        color: #1A3C6E;
-        margin-bottom: 0;
-    }
-    .subtitle {
-        font-size: 1.1rem;
-        color: #666;
-        margin-top: 0;
-    }
-    .patent-card {
-        background: #f8f9fa;
-        border-left: 4px solid #1A3C6E;
-        padding: 1rem 1.2rem;
-        border-radius: 6px;
-        margin-bottom: 1rem;
-    }
-    .patent-title {
-        font-size: 1.05rem;
-        font-weight: 600;
-        color: #1A3C6E;
-    }
-    .patent-meta {
-        font-size: 0.82rem;
-        color: #888;
-        margin-top: 2px;
-    }
-    .score-badge {
-        background: #e8f0fe;
-        color: #1A3C6E;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .history-item {
-        background: #f0f4ff;
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-size: 0.82rem;
-        color: #333;
-        margin-bottom: 4px;
-    }
+    .main-title { font-size: 2.8rem; font-weight: 700; color: #1A3C6E; margin-bottom: 0; }
+    .subtitle { font-size: 1.1rem; color: #666; margin-top: 0; }
+    .patent-card { background: #f8f9fa; border-left: 4px solid #1A3C6E; padding: 1rem 1.2rem; border-radius: 6px; margin-bottom: 1rem; }
+    .patent-title { font-size: 1.05rem; font-weight: 600; color: #1A3C6E; }
+    .patent-meta { font-size: 0.82rem; color: #888; margin-top: 2px; }
+    .score-badge { background: #e8f0fe; color: #1A3C6E; padding: 2px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+    .history-item { background: #f0f4ff; padding: 4px 10px; border-radius: 8px; font-size: 0.82rem; color: #333; margin-bottom: 4px; }
 </style>
 """, unsafe_allow_html=True)
 
-
 # ─────────────────────────────────────────
-# SESSION STATE — keeps data across reruns
+# SESSION STATE
 # ─────────────────────────────────────────
-# This is how Streamlit remembers things between searches
 if "search_history" not in st.session_state:
     st.session_state.search_history = []
-
 if "query" not in st.session_state:
     st.session_state.query = ""
-
+if "rag_question" not in st.session_state:
+    st.session_state.rag_question = ""
 
 # ─────────────────────────────────────────
 # LOAD MODEL + DATA
@@ -99,17 +56,13 @@ def load_data_and_index():
     else:
         patents = get_sample_patents()
         save_patents(patents)
-
     model = load_ai_model()
     index = load_index("data/faiss_index.bin")
-
     if index is None:
         embeddings = create_embeddings(patents, model)
         index = build_faiss_index(embeddings)
         save_index(index)
-
     return patents, index
-
 
 # ─────────────────────────────────────────
 # HEADER
@@ -124,13 +77,9 @@ with col2:
 
 st.divider()
 
-# ─────────────────────────────────────────
-# LOAD EVERYTHING
-# ─────────────────────────────────────────
 with st.spinner("Loading AI model and patent index..."):
     model = load_ai_model()
     patents, index = load_data_and_index()
-
 
 # ─────────────────────────────────────────
 # SIDEBAR
@@ -138,18 +87,12 @@ with st.spinner("Loading AI model and patent index..."):
 with st.sidebar:
     st.markdown("### ⚙️ Search Settings")
     top_k = st.slider("Number of results", min_value=1, max_value=10, value=5)
-
     st.markdown("---")
-
-    # DATABASE STATS
     st.markdown("### 📊 Database Stats")
     st.metric("Total Patents", len(patents))
     st.metric("Domain", "Aerospace / UAV")
     st.metric("AI Model", "MiniLM-L6-v2")
-
     st.markdown("---")
-
-    # PATENTS BY YEAR CHART
     st.markdown("### 📅 Patents by Year")
     years = [p["year"] for p in patents if p.get("year")]
     year_counts = Counter(years)
@@ -158,10 +101,7 @@ with st.sidebar:
         "Patents": list(year_counts.values())
     }).sort_values("Year")
     st.bar_chart(year_df.set_index("Year"))
-
     st.markdown("---")
-
-    # EXAMPLE QUERIES
     st.markdown("### 💡 Example Queries")
     examples = [
         "drone autonomous navigation",
@@ -173,10 +113,7 @@ with st.sidebar:
     for ex in examples:
         if st.button(ex, use_container_width=True):
             st.session_state.query = ex
-
     st.markdown("---")
-
-    # SEARCH HISTORY
     st.markdown("### 🕐 Search History")
     if st.session_state.search_history:
         for past_query in reversed(st.session_state.search_history[-8:]):
@@ -186,35 +123,28 @@ with st.sidebar:
     else:
         st.caption("No searches yet")
 
-
 # ─────────────────────────────────────────
-# MAIN — TABS
+# TABS
 # ─────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["🔍 Search Patents", "🤖 AI Assistant", "📋 Browse All Patents"])
+tab1, tab2, tab3, tab4 = st.tabs(["🔍 Search Patents", "🤖 AI Assistant", "📈 Analytics", "📋 Browse All Patents"])
 
 # ── TAB 1: SEARCH ──
 with tab1:
     st.markdown("### 🔍 Search Aerospace Patents by Meaning")
-
     query = st.text_input(
         "Enter any concept, technology, or question:",
         value=st.session_state.query,
         placeholder="e.g. AI for unmanned aircraft navigation..."
     )
-
     search_clicked = st.button("🔍 Search", type="primary")
 
     if query and search_clicked:
-        # Save to history
         if query not in st.session_state.search_history:
             st.session_state.search_history.append(query)
-
         with st.spinner(f"Searching for '{query}'..."):
             results = search_patents(query, patents, model, index, top_k=top_k)
-
         st.markdown(f"### 📋 Top {len(results)} Results for: *\"{query}\"*")
         st.caption("Ranked by semantic similarity — not keyword matching")
-
         for r in results:
             score = r["similarity_score"]
             if score < 0.9:
@@ -223,7 +153,6 @@ with tab1:
                 match_label = "🟡 Good Match"
             else:
                 match_label = "🔵 Related"
-
             with st.container():
                 st.markdown(f"""
                 <div class="patent-card">
@@ -236,13 +165,10 @@ with tab1:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-
                 with st.expander("Read Abstract"):
                     st.write(r["abstract"])
-
         st.divider()
         st.caption("💡 Tip: Try different phrasings — this system understands meaning, not just words")
-
     elif not query:
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
@@ -256,17 +182,11 @@ with tab1:
             st.markdown("#### ✈️ Aerospace Focused")
             st.write("Specialized on aerospace, UAV, drone, and propulsion patents.")
 
-
-# ── TAB 2: BROWSE ALL ──
 # ── TAB 2: AI ASSISTANT ──
 with tab2:
     st.markdown("### 🤖 Ask the Patent Intelligence Assistant")
     st.caption("Powered by RAG — answers are grounded in real patent data, not guesswork")
 
-    # Import RAG
-    from rag import rag_search_and_answer
-
-    # Example questions
     st.markdown("**Example questions you can ask:**")
     example_questions = [
         "Which patents use AI or machine learning for drone control?",
@@ -275,7 +195,6 @@ with tab2:
         "What safety systems exist for UAV operations in urban areas?",
         "Which patents deal with satellite positioning and control?"
     ]
-
     col1, col2 = st.columns(2)
     for i, eq in enumerate(example_questions):
         if i % 2 == 0:
@@ -288,27 +207,17 @@ with tab2:
                     st.session_state.rag_question = eq
 
     st.markdown("---")
-
-    # Initialize session state for RAG
-    if "rag_question" not in st.session_state:
-        st.session_state.rag_question = ""
-
     rag_question = st.text_area(
         "Ask anything about aerospace patents:",
         value=st.session_state.rag_question,
         placeholder="e.g. Which patents use machine learning for UAV control?",
         height=80
     )
-
     ask_clicked = st.button("🤖 Ask AI Assistant", type="primary")
 
     if rag_question and ask_clicked:
         with st.spinner("Retrieving patents and generating answer..."):
-            result = rag_search_and_answer(
-                rag_question, patents, model, index, top_k=5
-            )
-
-        # Show AI answer
+            result = rag_search_and_answer(rag_question, patents, model, index, top_k=5)
         st.markdown("### 💡 AI Analysis")
         st.markdown(f"""
         <div style="background:#f0f7ff; border-left:4px solid #1A3C6E;
@@ -316,18 +225,97 @@ with tab2:
         {result['answer'].replace(chr(10), '<br>')}
         </div>
         """, unsafe_allow_html=True)
-
-        # Show patents used
         st.markdown("### 📄 Patents Analyzed")
         for p in result["patents_used"]:
             score = p["similarity_score"]
             with st.expander(f"📄 {p['title']} — Patent #{p['number']}"):
                 st.write(p["abstract"])
                 st.caption(f"Date: {p['date']} | Similarity Score: {score:.3f}")
-
-        # Add to search history
         if rag_question not in st.session_state.search_history:
             st.session_state.search_history.append(f"[AI] {rag_question}")
-
     elif not rag_question:
-        st.info("💡 Type a question above or click an example to get an AI-powered analysis of the patent database.")
+        st.info("💡 Type a question above or click an example to get an AI-powered analysis.")
+
+# ── TAB 3: ANALYTICS ──
+with tab3:
+    st.markdown("### 📈 Aerospace Patent Analytics")
+    st.caption("Insights derived from the patent database")
+
+    stats = get_summary_stats(patents)
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Patents", stats["total"])
+    m2.metric("Year Range", stats["year_range"])
+    m3.metric("Latest Year", stats["newest"])
+    m4.metric("Tech Domains", stats["domains"])
+
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("#### 📅 Patent Filing Trend")
+        year_df = get_patents_by_year(patents)
+        fig1 = px.bar(year_df, x="Year", y="Patents Filed",
+                      color="Patents Filed", color_continuous_scale="Blues",
+                      title="Patents Filed per Year")
+        fig1.update_layout(plot_bgcolor="white", showlegend=False,
+                           height=350, coloraxis_showscale=False)
+        fig1.update_traces(marker_line_width=0)
+        st.plotly_chart(fig1, use_container_width=True)
+
+    with col2:
+        st.markdown("#### 🔬 Technology Domain Breakdown")
+        domain_df = get_domain_breakdown(patents)
+        fig2 = px.bar(domain_df, x="Patent Count", y="Domain",
+                      orientation="h", color="Patent Count",
+                      color_continuous_scale="Blues",
+                      title="Patents by Technology Domain")
+        fig2.update_layout(plot_bgcolor="white", showlegend=False,
+                           height=350, coloraxis_showscale=False)
+        st.plotly_chart(fig2, use_container_width=True)
+
+    st.markdown("---")
+    st.markdown("#### 🔑 Top Keywords Across All Patents")
+    keywords_df = get_top_keywords(patents, top_n=15)
+    fig3 = px.bar(keywords_df, x="Frequency", y="Keyword",
+                  orientation="h", color="Frequency",
+                  color_continuous_scale="Teal",
+                  title="Most Frequent Technical Terms")
+    fig3.update_layout(plot_bgcolor="white", showlegend=False,
+                       height=400, coloraxis_showscale=False)
+    st.plotly_chart(fig3, use_container_width=True)
+
+    st.markdown("---")
+    st.markdown("#### 🔍 Explore Patents by Domain")
+    selected_domain = st.selectbox("Select a technology domain:", list(TECH_DOMAINS.keys()))
+    domain_keywords = TECH_DOMAINS[selected_domain]
+    domain_patents = []
+    for p in patents:
+        text = (p["title"] + " " + p["abstract"]).lower()
+        if any(kw.lower() in text for kw in domain_keywords):
+            domain_patents.append(p)
+    st.markdown(f"**{len(domain_patents)} patents** in *{selected_domain}*")
+    for p in domain_patents:
+        with st.expander(f"📄 {p['title']} ({p['date']})"):
+            st.write(p["abstract"])
+            st.caption(f"Patent #{p['number']}")
+
+# ── TAB 4: BROWSE ALL ──
+with tab4:
+    st.markdown("### 📋 All Patents in Database")
+    st.caption(f"Showing all {len(patents)} aerospace patents")
+    all_years = sorted(set(p["year"] for p in patents if p.get("year")), reverse=True)
+    selected_year = st.selectbox("Filter by year", ["All years"] + all_years)
+    filtered = patents if selected_year == "All years" else [
+        p for p in patents if p.get("year") == selected_year
+    ]
+    st.markdown(f"**{len(filtered)} patents**")
+    st.markdown("---")
+    for p in filtered:
+        with st.expander(f"📄 {p['title']} ({p['date']})"):
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                st.markdown(f"**Abstract:** {p['abstract']}")
+            with col2:
+                st.markdown(f"**Patent No.:** `{p['number']}`")
+                st.markdown(f"**Date:** {p['date']}")
+                st.markdown(f"**Year:** {p['year']}")
