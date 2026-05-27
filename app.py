@@ -187,6 +187,7 @@ with tab1:
             st.write("Specialized on aerospace, UAV, drone, and propulsion patents.")
 
 # ── TAB 2: AI ASSISTANT ──
+# ── TAB 2: AI ASSISTANT ──
 with tab2:
     st.markdown("### 🤖 Ask the Patent Intelligence Assistant")
     st.caption("Powered by RAG — answers are grounded in real patent data, not guesswork")
@@ -220,30 +221,29 @@ with tab2:
     ask_clicked = st.button("🤖 Ask AI Assistant", type="primary")
 
     if rag_question and ask_clicked:
-        if not RAG_AVAILABLE:
-            st.error("AI Assistant unavailable — API key not configured.")
-            else:
-            with st.spinner("Retrieving patents and generating answer..."):
+        with st.spinner("Retrieving patents and generating answer..."):
+            try:
                 result = rag_search_and_answer(rag_question, patents, model, index, top_k=5)
-                
-        st.markdown("### 💡 AI Analysis")
-        st.markdown(f"""
-        <div style="background:#f0f7ff; border-left:4px solid #1A3C6E;
-        padding:1.2rem; border-radius:6px; margin-bottom:1rem;">
-        {result['answer'].replace(chr(10), '<br>')}
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("### 📄 Patents Analyzed")
-        for p in result["patents_used"]:
-            score = p["similarity_score"]
-            with st.expander(f"📄 {p['title']} — Patent #{p['number']}"):
-                st.write(p["abstract"])
-                st.caption(f"Date: {p['date']} | Similarity Score: {score:.3f}")
-        if rag_question not in st.session_state.search_history:
-            st.session_state.search_history.append(f"[AI] {rag_question}")
+                st.markdown("### 💡 AI Analysis")
+                st.markdown(f"""
+                <div style="background:#f0f7ff; border-left:4px solid #1A3C6E;
+                padding:1.2rem; border-radius:6px; margin-bottom:1rem;">
+                {result['answer'].replace(chr(10), '<br>')}
+                </div>
+                """, unsafe_allow_html=True)
+                st.markdown("### 📄 Patents Analyzed")
+                for p in result["patents_used"]:
+                    score = p["similarity_score"]
+                    with st.expander(f"📄 {p['title']} — Patent #{p['number']}"):
+                        st.write(p["abstract"])
+                        st.caption(f"Date: {p['date']} | Similarity Score: {score:.3f}")
+                if rag_question not in st.session_state.search_history:
+                    st.session_state.search_history.append(f"[AI] {rag_question}")
+            except Exception as e:
+                st.error(f"AI Assistant error: {str(e)}")
     elif not rag_question:
         st.info("💡 Type a question above or click an example to get an AI-powered analysis.")
-
+        
 # ── TAB 3: ANALYTICS ──
 with tab3:
     st.markdown("### 📈 Aerospace Patent Analytics")
