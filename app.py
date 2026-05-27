@@ -12,7 +12,11 @@ sys.path.append("src")
 from fetch_patents import load_patents, get_sample_patents, save_patents
 from embedder import load_model, create_embeddings, build_faiss_index, search_patents, load_index, save_index
 from analytics import get_patents_by_year, get_domain_breakdown, get_top_keywords, get_summary_stats, TECH_DOMAINS
-from rag import rag_search_and_answer
+try:
+    from rag import rag_search_and_answer
+    RAG_AVAILABLE = True
+except Exception:
+    RAG_AVAILABLE = False
 
 # ─────────────────────────────────────────
 # PAGE CONFIG
@@ -216,8 +220,12 @@ with tab2:
     ask_clicked = st.button("🤖 Ask AI Assistant", type="primary")
 
     if rag_question and ask_clicked:
-        with st.spinner("Retrieving patents and generating answer..."):
-            result = rag_search_and_answer(rag_question, patents, model, index, top_k=5)
+        if not RAG_AVAILABLE:
+            st.error("AI Assistant unavailable — API key not configured.")
+            else:
+            with st.spinner("Retrieving patents and generating answer..."):
+                result = rag_search_and_answer(rag_question, patents, model, index, top_k=5)
+                
         st.markdown("### 💡 AI Analysis")
         st.markdown(f"""
         <div style="background:#f0f7ff; border-left:4px solid #1A3C6E;

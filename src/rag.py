@@ -6,11 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 def get_groq_client():
-    """
-    Creates and returns a Groq client.
-    Reads from environment variables — works locally and on HuggingFace.
-    """
-    # Try all possible key names
+    import streamlit as st
     api_key = (
         os.getenv("GROQ_API_KEY") or
         os.getenv("GROQAPIKEY") or
@@ -19,9 +15,13 @@ def get_groq_client():
         os.getenv("GROQ")
     )
     if not api_key:
-        raise ValueError("Groq API key not found. Please set GROQ_API_KEY in environment.")
+        raise ValueError("No Groq API key found in any environment variable")
+    
+    # Validate key format
+    if not api_key.startswith("gsk_"):
+        raise ValueError(f"Invalid key format — starts with: {api_key[:6]}")
+    
     return Groq(api_key=api_key)
-
 
 def build_context(patents):
     """
