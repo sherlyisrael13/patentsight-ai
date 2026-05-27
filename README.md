@@ -44,5 +44,9 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+## Live Demo
+🚀 [PatentSight AI on HuggingFace](https://huggingface.co/spaces/sherly13/patentsight-ai)
+
 ## Built by
-Josephine Sherly P — B.Tech CSE (AI & ML), SRM IST Trichy
+Josephine Sherly P — B.Tech CSE (AI & ML), SRM IST Trichy  
+GitHub: [sherlyisrael13](https://github.com/sherlyisrael13)
