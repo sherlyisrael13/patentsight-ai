@@ -293,6 +293,31 @@ with tab3:
     st.plotly_chart(fig3, use_container_width=True)
 
     st.markdown("---")
+    st.markdown("#### 📊 System Evaluation Metrics")
+    st.caption("Measured performance of the retrieval system across test queries")
+
+    if st.button("▶ Run Evaluation", key="run_eval"):
+        from evaluator import evaluate_retrieval
+        with st.spinner("Running evaluation across 5 test queries..."):
+            metrics = evaluate_retrieval(patents, model, index)
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Avg Retrieval Latency", f"{metrics['avg_latency_ms']} ms")
+        col2.metric("Retrieval Precision", f"{metrics['retrieval_precision']}%")
+        col3.metric("Avg Similarity Score", f"{metrics['avg_similarity_score']}")
+        col4.metric("Patents Indexed", metrics['total_patents_indexed'])
+
+        st.markdown(f"""
+        | Metric | Value |
+        |---|---|
+        | Min Latency | {metrics['min_latency_ms']} ms |
+        | Max Latency | {metrics['max_latency_ms']} ms |
+        | Queries Tested | {metrics['total_queries_tested']} |
+        | Avg Relevance Score | {metrics['avg_relevance_score']} |
+        """)
+        st.success("Evaluation complete — results show real-time system performance")
+
+    st.markdown("---")
     st.markdown("#### 🔍 Explore Patents by Domain")
     selected_domain = st.selectbox("Select a technology domain:", list(TECH_DOMAINS.keys()))
     domain_keywords = TECH_DOMAINS[selected_domain]
