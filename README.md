@@ -47,6 +47,16 @@ streamlit run app.py
 ## Live Demo
 🚀 [PatentSight AI on HuggingFace](https://huggingface.co/spaces/sherly13/patentsight-ai)
 
+## System Performance
+| Metric | Value |
+|---|---|
+| Retrieval Precision | 86.7% |
+| Min Retrieval Latency | 6.83 ms |
+| Avg Similarity Score | 0.8669 |
+| Patents Indexed | 97 |
+| Year Range | 2014 – 2023 |
+| Technology Domains | 7 |
+
 ## Built by
 Josephine Sherly P — B.Tech CSE (AI & ML), SRM IST Trichy  
 GitHub: [sherlyisrael13](https://github.com/sherlyisrael13)
