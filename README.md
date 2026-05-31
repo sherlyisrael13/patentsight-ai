@@ -147,7 +147,7 @@ Get a free Groq API key at [console.groq.com](https://console.groq.com)
 ![Analytics](screenshots/analytics.png)
 
 ### Browse All Patents
-![browse all patents ](screenshots/browse all patents.png)
+![browse all patents ](screenshots/browseallpatents.png)
 
 ### knowledge Graph
 ![knowledge](screenshots/knowledge.png)
