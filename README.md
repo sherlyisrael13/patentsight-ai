@@ -1,12 +1,3 @@
----
-title: PatentSight AI
-emoji: ✈️
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
----
-
 # ✈️ PatentSight AI
 ### Aerospace Patent Intelligence Platform
 
@@ -78,15 +69,15 @@ Full system architecture diagram showing the complete data flow from query to in
 
 ## 🏗️ System Architecture
 User Query (plain English)
-↓
+          ↓
 Sentence-Transformers (all-MiniLM-L6-v2)
-↓  text → 384-dimensional vectors
+          ↓  text → 384-dimensional vectors
 FAISS Vector Index (97 aerospace patents)
-↓  semantic similarity search
+          ↓  semantic similarity search
 Retrieved Patent Context (top-k results)
-↓
+          ↓
 Groq LLM (Llama 3.3-70B) ← RAG layer
-↓  grounded answer with patent citations
+          ↓  grounded answer with patent citations
 Streamlit Dashboard
 
 ---
@@ -144,6 +135,25 @@ Get a free Groq API key at [console.groq.com](https://console.groq.com)
 97 real USPTO aerospace patents (2014–2023) covering:
 `UAV / Drone` · `Aerospace Propulsion` · `AI & Machine Learning` · `Satellite Systems` · `Structural Systems` · `Power Systems` · `Autonomous Navigation`
 
+## 📸 Screenshots
+
+### Semantic Search
+![Search](screenshots/search.png)
+
+### AI Assistant
+![AI](screenshots/ai_assistant.png)
+
+### Analytics
+![Analytics](screenshots/analytics.png)
+
+### Browse All Patents
+![browse all patents](screenshots/brwose all patents.png)
+
+### knowledge Graph
+![knowledge Graph](screenshots/knowledge Graph.png)
+
+### Architecture
+![Architecture](screenshots/Architecture.png)
 ---
 
 ## 👩‍💻 Built By
